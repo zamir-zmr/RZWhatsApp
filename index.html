@@ -151,6 +151,17 @@
 }
 
         
+/* Seen/Not Seen Icons Style */
+.status-icon {
+    font-size: 14px;
+    margin-left: 5px;
+    filter: grayscale(1); /* Default Not Seen (Greyish) */
+    transition: all 0.3s ease;
+}
+
+.status-icon.seen {
+    filter: grayscale(0); /* Seen (Original Color) */
+}
 
 
 
@@ -665,14 +676,8 @@ function loadMessages() {
         const msgId = snapshot.key;
         const isMe = data.sender === currentUser;
 
-        // FIXED LOGIC:
-        // Sirf un messages ko 'read' mark karo jo:
-        // 1. Saamne wale ne bheje hon (!isMe)
-        // 2. Status 'read' na ho
-        // 3. App visible ho
-        // 4. Sabse Zaroori: Message bhejne ka waqt app khulne ke BAAD ka ho (Real-time message)
+        // FIXED LOGIC: Messages ko 'read' mark karne ka logic wahi rakha hai
         if (!isMe && data.status !== "read" && document.visibilityState === 'visible') {
-            // Hum ek chota delay denge taaki UI load ho jaye
             setTimeout(() => {
                 db.ref('messages/' + msgId).update({ status: "read" });
             }, 500);
@@ -682,31 +687,34 @@ function loadMessages() {
         bubble.id = "msg-" + msgId;
         bubble.className = `msg-bubble ${isMe ? 'sent' : 'received'}`;
         
-        let tickHTML = "";
+        let statusHTML = ""; // Ticks ki jagah statusHTML banaya
         if (isMe) {
-            let blueClass = (data.status === "read") ? "blue-tick" : "";
-            tickHTML = `<span class="check-mark ${blueClass}" id="tick-${msgId}">✓✓</span>`;
+            // Check status: read hai toh 👁️ (Seen), varna 👁️‍🗨️ (Not seen)
+            let icon = (data.status === "read") ? "👁️" :"​⚪" ;
+            let seenClass = (data.status === "read") ? "seen" : "";
+            statusHTML = `<span class="status-icon ${seenClass}" id="status-${msgId}" style="font-size: 14px; margin-left: 5px;">${icon}</span>`;
         }
 
         bubble.innerHTML = `
             <div>${data.text}</div>
             <div class="bubble-footer">
                 <span class="msg-time">${data.time}</span>
-                ${tickHTML}
+                ${statusHTML}
             </div>
         `;
         list.appendChild(bubble);
         list.scrollTop = list.scrollHeight; 
     });
 
-    // Ticks update hone par color change karne ke liye
+    // Jab status update ho (Sent -> Read) toh icon badalne ke liye
     db.ref('messages').on('child_changed', (snapshot) => {
         const data = snapshot.val();
         const msgId = snapshot.key;
-        const tickElement = document.getElementById("tick-" + msgId);
+        const statusElement = document.getElementById("status-" + msgId);
         
-        if (tickElement && data.status === "read") {
-            tickElement.classList.add("blue-tick");
+        if (statusElement && data.status === "read") {
+            statusElement.innerText = "👁️"; // "Not seen" ko "Seen" mein badle
+            statusElement.classList.add("seen");
         }
     });
 }

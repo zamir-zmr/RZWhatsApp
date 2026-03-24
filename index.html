@@ -162,14 +162,152 @@
 .status-icon.seen {
     filter: grayscale(0); /* Seen (Original Color) */
 }
+.status-icon.seen {
+    color: #34B7F1; /* WhatsApp Blue color */
+    animation: eye-blink 0.5s ease-in-out;
+}
+
+.status-icon {
+    transition: transform 0.3s ease-in-out, opacity 0.3s;
+}
+
+/* Jab aankh BAND (Unseen) ho */
+.status-icon.closed {
+    transform: scaleY(0.1); /* Yeh aankh ko vertical daba deta hai (Close look) */
+    opacity: 0.5;           /* Thoda dhundhla takki 'Unseen' lage */
+}
+
+/* Jab aankh KHULI (Seen) ho */
+.status-icon.seen {
+    transform: scaleY(1);   /* Normal size (Open look) */
+    opacity: 1;
+    color: #34B7F1;         /* Professional WhatsApp Blue touch */
+}
+
+
+@keyframes eye-blink {
+    0% { transform: scaleY(1); }
+    50% { transform: scaleY(0.1); }
+    100% { transform: scaleY(1); }
+}
+
+
+.input-bar {
+    background: transparent; 
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.input-container {
+    background: white;
+    border-radius: 25px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    min-height: 48px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+#msg-input {
+    border: none;
+    width: 100%;
+    padding: 12px 0;
+    outline: none;
+    font-size: 16px;
+    background: transparent;
+    color: #111b21;
+}
+
+.send-btn {
+    background: #00a884;
+    border: none;
+    color: white;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.send-btn i {
+    font-size: 18px;
+    margin-left: 2px; /* Plane icon ko center karne ke liye */
+}
+
+/* Compressed Input Bar Design */
+.input-bar-compressed {
+    background: transparent; 
+    padding: 6px 10px; /* Padding kam ki gayi hai space bachane ke liye */
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px; /* Niche se thoda gap professional lagta hai */
+}
+
+
+.input-capsule {
+    background: white;
+    border-radius: 25px;
+    flex: 1;
+    display: flex;
+    align-items: center; /* Vertical alignment fix */
+    padding: 0 15px;
+    height: 42px; /* Fixed height */
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+#msg-input {
+    border: none;
+    width: 100%;
+    height: 100%; /* Capsule ki poori height lega */
+    outline: none;
+    font-size: 16px;
+    background: transparent;
+    color: #111b21;
+    display: flex;
+    align-items: center; /* Browser internal support */
+    padding: 0; /* Extra padding hata di gayi hai */
+    margin: 0;
+}
+
+/* Placeholder text ko center karne ke liye */
+#msg-input::placeholder {
+    color: #8696a0;
+    vertical-align: middle;
+}
 
 
 
+.send-btn-small {
+    background: #00a884;
+    border: none;
+    color: white;
+    width: 42px; /* Button ka size input box ki height ke barabar */
+    height: 42px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.send-btn-small i {
+    font-size: 16px; /* Icon size thoda chota */
+    margin-left: 2px;
+}
 
 
-        .input-bar { background: #f0f2f5; padding: 10px 16px; display: flex; align-items: center; gap: 10px; }
-        #msg-input { border: none; padding: 10px 15px; border-radius: 20px; flex: 1; outline: none; font-size: 15px; background: white; }
-        .send-btn { background: #008069; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        
         
         .status-text { font-size: 12px; }
         .typing-indicator { color: #fff; font-style: italic; font-weight: 500; }
@@ -432,13 +570,19 @@
 </div>
         
         <div id="message-list"></div>
+<div class="input-bar-compressed">
+    <div class="input-capsule">
+        <input type="text" id="msg-input" placeholder="Message" 
+               oninput="handleTyping()" 
+               onkeydown="if(event.key==='Enter') sendMessage()">
+    </div>
+    <button class="send-btn-small" onmousedown="event.preventDefault()" onclick="sendMessage()">
+        <i class="fa-solid fa-paper-plane"></i>
+    </button>
+</div>
 
-        <div class="input-bar">
-            <input type="text" id="msg-input" placeholder="Type a message" 
-                   oninput="handleTyping()" 
-                   onkeydown="if(event.key==='Enter') sendMessage()">
-            <button class="send-btn" onclick="sendMessage()">➔</button>
-        </div>
+
+
     </div>
 
     <script>
@@ -688,12 +832,15 @@ function loadMessages() {
         bubble.className = `msg-bubble ${isMe ? 'sent' : 'received'}`;
         
         let statusHTML = ""; // Ticks ki jagah statusHTML banaya
-        if (isMe) {
-            // Check status: read hai toh 👁️ (Seen), varna 👁️‍🗨️ (Not seen)
-            let icon = (data.status === "read") ? "👁️" :"​⚪" ;
-            let seenClass = (data.status === "read") ? "seen" : "";
-            statusHTML = `<span class="status-icon ${seenClass}" id="status-${msgId}" style="font-size: 14px; margin-left: 5px;">${icon}</span>`;
-        }
+if (isMe) {
+    // Status check: read hai toh status 'seen', varna 'closed'
+    let isRead = (data.status === "read");
+    let seenClass = isRead ? "seen" : "closed";
+    
+    // Icon hamesha 👁️ rahega, par CSS ise band (close) karegi
+    statusHTML = `<span class="status-icon ${seenClass}" id="status-${msgId}" style="display: inline-block; font-size: 20px; margin-left: 5px;">👁️</span>`;
+}
+
 
         bubble.innerHTML = `
             <div>${data.text}</div>

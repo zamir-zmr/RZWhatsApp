@@ -510,49 +510,67 @@ function closeError() {
             }, 2000); // Hide "Typing..." after 2 seconds of silence
         }
 
-        function setupChat(user) {
-            currentUser = user;
-            const talkingTo = (user === "Zamir") ? "Rahima" : "Zamir";
-            
-            document.getElementById('login-screen').style.display = "none";
-            document.getElementById('chat-interface').style.display = "flex";
-            document.getElementById('display-name').innerText = talkingTo;
-            document.getElementById('user-initial').innerText = talkingTo.charAt(0);
+function setupChat(user) {
+    currentUser = user;
+    const talkingTo = (user === "Zamir") ? "Rahima" : "Zamir";
+    
+    document.getElementById('login-screen').style.display = "none";
+    document.getElementById('chat-interface').style.display = "flex";
+    document.getElementById('display-name').innerText = talkingTo;
+    document.getElementById('user-initial').innerText = talkingTo.charAt(0);
 
-            // Online/Offline Status
-            const myStatusRef = db.ref('status/' + user);
-            db.ref('.info/connected').on('value', (snapshot) => {
-                if (snapshot.val() === false) return;
-                myStatusRef.onDisconnect().set('offline');
-                myStatusRef.set('online');
-            });
+    // --- 1. Online/Last Seen Logic (My Status) ---
+    const myStatusRef = db.ref('status/' + user);
+    db.ref('.info/connected').on('value', (snapshot) => {
+        if (snapshot.val() === false) return;
+        
+        // Jab app band ho, to 'offline' ki jagah Current Time (Timestamp) save ho
+        myStatusRef.onDisconnect().set(Date.now()); 
+        myStatusRef.set('online');
+    });
 
-            // Monitor Partner's Status & Typing
-            db.ref('status/' + talkingTo).on('value', (statusSnap) => {
-                const status = statusSnap.val() || 'offline';
-                const statusElement = document.getElementById('user-status');
+    // --- 2. Monitor Partner's Status, Typing & Last Seen ---
+    db.ref('status/' + talkingTo).on('value', (statusSnap) => {
+        const val = statusSnap.val(); // Isme ya to 'online' hoga ya phir purana time (Number)
+        const statusElement = document.getElementById('user-status');
 
-                // Check Typing status from its own path
-                db.ref('typing/' + talkingTo).on('value', (typingSnap) => {
-                    if (typingSnap.val() === true) {
-                        statusElement.innerText = "typing...";
-                        statusElement.className = "status-text typing-indicator";
-                    } else {
-                        statusElement.innerText = status.charAt(0).toUpperCase() + status.slice(1);
-                        statusElement.className = "status-text " + status;
-                    }
-                });
-            });
+        db.ref('typing/' + talkingTo).on('value', (typingSnap) => {
+            if (typingSnap.val() === true) {
+                // Agar typing kar raha hai
+                statusElement.innerText = "typing...";
+                statusElement.className = "status-text typing-indicator";
+            } else if (val === 'online') {
+                // Agar online hai
+                statusElement.innerText = "Online";
+                statusElement.className = "status-text online";
+            } else if (val && typeof val === 'number') {
+                // Agar offline hai, to timestamp ko readable time mein badlo
+                const lastSeenDate = new Date(val);
+                const timeStr = lastSeenDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                statusElement.innerText = "last seen today at " + timeStr;
+                statusElement.className = "status-text offline";
+            } else {
+                // Default case
+                statusElement.innerText = "Offline";
+                statusElement.className = "status-text offline";
+            }
+        });
+    });
 
-            loadMessages();
-        }
+    loadMessages();
+}
 
-        function logout() {
-            db.ref('status/' + currentUser).set('offline');
-            db.ref('typing/' + currentUser).set(false);
-            localStorage.removeItem("ash_chat_user");
-            location.reload();
-        }
+function logout() {
+    // 'offline' ki jagah current time (Date.now) set karein taaki last seen update ho jaye
+    if (currentUser) {
+        db.ref('status/' + currentUser).set(Date.now()); 
+        db.ref('typing/' + currentUser).set(false);
+    }
+    
+    // Local storage saaf karke page reload karein
+    localStorage.removeItem("ash_chat_user");
+    location.reload();
+}
 
         function sendMessage() {
             const inputField = document.getElementById('msg-input');

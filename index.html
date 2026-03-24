@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Pro - Ash Bakes</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; background: #dadbd3; height: 100vh; display: flex; flex-direction: column; }
+        
+ 
+ #login-screen { 
+    display: none; /* Default hidden rakhein, JS decide karega kab dikhana hai */
+    flex: 1; 
+    justify-content: center; 
+    align-items: center; 
+    background: #f0f2f5; 
+}
+
+.advanced-popup, #blur-overlay {
+    display: none !important; /* !important lagane se flicker bilkul band ho jayega */
+}
+
+        
+        #chat-interface { display: none; flex-direction: column; height: 100vh; max-width: 600px; margin: 0 auto; width: 100%; background: #efeae2; position: relative; }
+        
+        /* Real WhatsApp Header Style */
+.chat-header {
+    background: #008069; 
+    color: white; 
+    padding: 10px 16px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    height: 65px; 
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
+
+/* Dropdown Menu Design */
+.dropdown-menu {
+    display: none;
+    position: absolute; 
+    right: 5px; 
+    top: 45px; 
+    background: white;
+    color: #333; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+    border-radius: 4px; 
+    width: 160px; 
+    z-index: 2100; 
+    padding: 8px 0;
+    animation: fadeIn 0.2s ease;
+}
+
+.dropdown-menu div { 
+    padding: 12px 20px; 
+    cursor: pointer; 
+    font-size: 15px;
+    transition: background 0.2s;
+}
+
+.dropdown-menu div:hover { background: #f5f5f5; }
+
+/* Status Indicators */
+.status-text { font-size: 12px; font-weight: 400; }
+.online { color: #80ffdb; } /* Light green for online status */
+.typing-indicator { color: #80ffdb; font-style: italic; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        
+        .header-left { display: flex; align-items: center; }
+        .header-avatar { width: 40px; height: 40px; background: #dfe5e7; border-radius: 50%; margin-right: 12px; display: flex; align-items: center; justify-content: center; color: #54656f; font-weight: bold; }
+        
+        #message-list { 
+            flex: 1; overflow-y: auto; padding: 20px 5%; 
+            background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); 
+            display: flex; flex-direction: column; 
+        }
+
+        .msg-bubble { position: relative; max-width: 75%; padding: 6px 8px 8px 9px; margin-bottom: 4px; font-size: 14.5px; line-height: 19px; box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); border-radius: 7.5px; }
+        .sent { align-self: flex-end; background: #d9fdd3; border-top-right-radius: 0; }
+        .received { align-self: flex-start; background: #ffffff; border-top-left-radius: 0; }
+        
+        .bubble-footer { display: flex; align-items: center; justify-content: flex-end; margin-top: -2px; }
+        .msg-time { font-size: 11px; color: #667781; }
+        .check-mark { color: #53bdeb; font-size: 14px; margin-left: 3px; }
+
+        .input-bar { background: #f0f2f5; padding: 10px 16px; display: flex; align-items: center; gap: 10px; }
+        #msg-input { border: none; padding: 10px 15px; border-radius: 20px; flex: 1; outline: none; font-size: 15px; background: white; }
+        .send-btn { background: #008069; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        
+        .status-text { font-size: 12px; }
+        .typing-indicator { color: #fff; font-style: italic; font-weight: 500; }
+        .online { color: #fff; }
+        .offline { color: #cfd8dc; }
+    
+    
+    /* Purane .input-bar ko hatakar ye paste karein */
+.input-wrapper {
+    background: #f0f2f5;
+    padding: 10px;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.input-container {
+    background: white;
+    border-radius: 25px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 5px 15px;
+}
+
+.input-container i {
+    color: #8696a0;
+    font-size: 20px;
+    padding: 5px;
+}
+
+#msg-input {
+    border: none;
+    padding: 10px;
+    flex: 1;
+    outline: none;
+    background: transparent;
+}
+
+.action-btn {
+    background: #00a884;
+    border: none;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+    /* Professional Error Popup */
+.error-popup {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 25px;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    text-align: center;
+    z-index: 2000;
+    width: 280px;
+    border-top: 5px solid #ea4335;
+}
+
+.error-popup i {
+    font-size: 40px;
+    color: #ea4335;
+    margin-bottom: 15px;
+}
+
+.error-popup button {
+    margin-top: 15px;
+    padding: 8px 25px;
+    background: #008069;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+/* Background blur jab error aaye */
+
+/* Professional Blur Background */
+#blur-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(5px);
+    z-index: 1999;
+    animation: fadeIn 0.3s ease;
+}
+
+
+/* Ise check karein, display: none; hona chahiye taaki page load par na dikhe */
+.advanced-popup {
+    display: none; 
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    background: white;
+    width: 320px;
+    padding: 30px 20px;
+    border-radius: 20px;
+    z-index: 2000;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+}
+/* Blur and Popup Styles */
+#blur-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(5px);
+    z-index: 1999;
+}
+
+.advanced-popup {
+    display: none;
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    background: white;
+    width: 320px;
+    padding: 30px 20px;
+    border-radius: 20px;
+    text-align: center;
+    z-index: 2000;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    border-top: 6px solid #ea4335; /* Professional red accent */
+    animation: popIn 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
+}
+
+/* Shake effect for wrong password */
+.shake-animation {
+    animation: shake 0.4s ease-in-out !important;
+}
+
+@keyframes popIn { to { transform: translate(-50%, -50%) scale(1); } }
+@keyframes shake {
+    0%, 100% { transform: translate(-50%, -50%); }
+    20%, 60% { transform: translate(-55%, -50%); }
+    40%, 80% { transform: translate(-45%, -50%); }
+}
+
+.popup-icon { font-size: 50px; color: #ea4335; margin-bottom: 15px; }
+
+.popup-btn {
+    margin-top: 20px;
+    width: 100%;
+    padding: 12px;
+    background: #008069; /* WhatsApp Green */
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+
+
+
+
+/* Jab galat password ho toh ye class add hogi */
+.shake-animation {
+    animation: shake 0.4s ease-in-out !important;
+}
+
+/* Animations Logic */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popIn { to { transform: translate(-50%, -50%) scale(1); } }
+
+@keyframes shake {
+    0%, 100% { transform: translate(-50%, -50%); }
+    20%, 60% { transform: translate(-55%, -50%); }
+    40%, 80% { transform: translate(-45%, -50%); }
+}
+
+.popup-icon {
+    font-size: 50px;
+    color: #ea4335;
+    margin-bottom: 15px;
+}
+
+.popup-btn {
+    margin-top: 20px;
+    width: 100%;
+    padding: 12px;
+    background: #008069;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.popup-btn:active { background: #005e4d; transform: scale(0.98); }
+
+.dropdown-menu {
+    position: absolute; right: 0; top: 40px; background: white;
+    color: #333; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    border-radius: 8px; width: 150px; z-index: 1001; padding: 10px 0;
+}
+.dropdown-menu div { padding: 12px 20px; cursor: pointer; }
+.dropdown-menu div:hover { background: #f5f5f5; }
+
+.full-screen-modal {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: white; z-index: 2000; display: flex; flex-direction: column;
+}
+.modal-header {
+    background: #008069; color: white; padding: 18px;
+    display: flex; align-items: center; gap: 25px; font-size: 19px;
+}
+.modal-item {
+    display: flex; align-items: center; padding: 20px;
+    gap: 25px; border-bottom: 1px solid #f0f0f0; cursor: pointer;
+}
+.modal-item i { font-size: 22px; color: #667781; }
+.modal-item p { font-size: 13px; color: #667781; }
+
+    
+    </style>
+    
+  
+</head>
+<body>
+
+
+    <div id="login-screen">
+        <div class="login-box">
+            <h3>WhatsApp Admin</h3>
+            <input type="text" id="username" placeholder="Name">
+            <input type="password" id="password" placeholder="Password">
+            <button onclick="login()" style="width:100%; padding:12px; background:#00a884; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">LOG IN</button>
+            <p id="error" style="color:#d32f2f; font-size:12px; margin-top:15px;"></p>
+        </div>
+    </div>
+    
+<div id="blur-overlay" onclick="closeError()" style="display: none;"></div>
+
+
+
+<div id="error-popup" class="advanced-popup" style="display: none;">
+    <div class="popup-icon">
+        <i class="fa-solid fa-circle-exclamation"></i>
+    </div>
+    <h2 id="popup-title">Alert</h2>
+    <p id="error-message-text"></p>
+    <button class="popup-btn" onclick="closeError()">Got it</button>
+</div>
+
+
+
+
+
+
+
+    <div id="chat-interface">
+
+
+<div class="chat-header">
+    <div class="header-left">
+        <div class="header-avatar" id="user-initial">?</div>
+        <div>
+            <div id="display-name" style="font-size: 16px; font-weight: 600;">Partner</div>
+            <div id="user-status" class="status-text">Offline</div>
+        </div>
+    </div>
+    <div class="header-right" style="position: relative;">
+        <i class="fa-solid fa-ellipsis-vertical" onclick="toggleMenu()" style="cursor: pointer; padding: 8px 12px; font-size: 18px;"></i>
+        
+        <div id="main-menu" class="dropdown-menu">
+            <div onclick="openSettings()">Settings</div>
+            <div onclick="logout()">Logout</div>
+        </div>
+    </div>
+</div>
+        
+        <div id="message-list"></div>
+
+        <div class="input-bar">
+            <input type="text" id="msg-input" placeholder="Type a message" 
+                   oninput="handleTyping()" 
+                   onkeydown="if(event.key==='Enter') sendMessage()">
+            <button class="send-btn" onclick="sendMessage()">➔</button>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyA3bsKfP7CxS0Sb0CY6xu_vFogVcxbJCII",
+            authDomain: "ashcostingapp.firebaseapp.com",
+            databaseURL: "https://ashcostingapp-default-rtdb.firebaseio.com",
+            projectId: "ashcostingapp",
+            storageBucket: "ashcostingapp.firebasestorage.app",
+            messagingSenderId: "576053214259",
+            appId: "1:576053214259:web:e47a6c38721d62580fb746"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        let currentUser = "";
+        let typingTimeout;
+
+
+// Sirf ye EK window.onload rakhein
+window.onload = () => {
+    const saved = localStorage.getItem("ash_chat_user");
+    
+    // Sabse pehle popup aur overlay ko hidden confirm karein
+    document.getElementById('error-popup').style.display = "none";
+    document.getElementById('blur-overlay').style.display = "none";
+
+    if (saved) {
+        // Agar pehle se login hai, toh seedha chat dikhao
+        setupChat(saved); 
+    } else {
+        // Agar login nahi hai, sirf tabhi login screen dikhao
+        document.getElementById('login-screen').style.display = "flex";
+        document.getElementById('chat-interface').style.display = "none";
+    }
+};
+function login() {
+    const u = document.getElementById('username').value.trim();
+    const p = document.getElementById('password').value.trim();
+    const popup = document.getElementById('error-popup');
+    const overlay = document.getElementById('blur-overlay');
+    const msgText = document.getElementById('error-message-text');
+
+    popup.classList.remove('shake-animation'); // Reset animation
+
+    let errorMessage = "";
+
+    // Validation sequence
+    if (u === "") {
+        errorMessage = "Please first enter your Name";
+    } else if (p === "") {
+        errorMessage = "Please enter your Password";
+    } else if (u !== "Zamir" && u !== "Abc") {
+        errorMessage = "Wrong Username! This user is not registered.";
+    } else if (p !== "123") {
+        errorMessage = "Wrong Password! Access Denied.";
+        popup.classList.add('shake-animation'); // Shake only on wrong password
+    }
+
+    if (errorMessage !== "") {
+        msgText.innerText = errorMessage;
+        popup.style.display = 'block';
+        overlay.style.display = 'block';
+        return;
+    }
+
+    // Success logic
+    localStorage.setItem("ash_chat_user", u);
+    setupChat(u);
+}
+
+function closeError() {
+    document.getElementById('error-popup').style.display = 'none';
+    document.getElementById('blur-overlay').style.display = 'none';
+}
+
+
+function closeError() {
+    document.getElementById('error-popup').style.display = 'none';
+    document.getElementById('blur-overlay').style.display = 'none';
+    document.getElementById('error-popup').classList.remove('shake-animation');
+}
+
+
+function closeError() {
+    document.getElementById('error-popup').style.display = 'none';
+    document.getElementById('blur-overlay').style.display = 'none';
+    // Remove shake class so it can play again
+    document.getElementById('error-popup').classList.remove('shake-animation');
+}
+
+
+// Popup dikhane ke liye helper function
+function showError(msg) {
+    document.getElementById('error-message-text').innerText = msg;
+    document.getElementById('error-popup').style.display = 'block';
+    document.getElementById('blur-overlay').style.display = 'block';
+}
+
+function closeError() {
+    document.getElementById('error-popup').style.display = 'none';
+    document.getElementById('blur-overlay').style.display = 'none';
+}
+
+
+function closeError() {
+    document.getElementById('error-popup').style.display = 'none';
+    document.getElementById('blur-overlay').style.display = 'none';
+}
+
+        // --- NEW: Typing Logic ---
+        function handleTyping() {
+            db.ref('typing/' + currentUser).set(true);
+            
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                db.ref('typing/' + currentUser).set(false);
+            }, 2000); // Hide "Typing..." after 2 seconds of silence
+        }
+
+        function setupChat(user) {
+            currentUser = user;
+            const talkingTo = (user === "Zamir") ? "Abc" : "Zamir";
+            
+            document.getElementById('login-screen').style.display = "none";
+            document.getElementById('chat-interface').style.display = "flex";
+            document.getElementById('display-name').innerText = talkingTo;
+            document.getElementById('user-initial').innerText = talkingTo.charAt(0);
+
+            // Online/Offline Status
+            const myStatusRef = db.ref('status/' + user);
+            db.ref('.info/connected').on('value', (snapshot) => {
+                if (snapshot.val() === false) return;
+                myStatusRef.onDisconnect().set('offline');
+                myStatusRef.set('online');
+            });
+
+            // Monitor Partner's Status & Typing
+            db.ref('status/' + talkingTo).on('value', (statusSnap) => {
+                const status = statusSnap.val() || 'offline';
+                const statusElement = document.getElementById('user-status');
+
+                // Check Typing status from its own path
+                db.ref('typing/' + talkingTo).on('value', (typingSnap) => {
+                    if (typingSnap.val() === true) {
+                        statusElement.innerText = "typing...";
+                        statusElement.className = "status-text typing-indicator";
+                    } else {
+                        statusElement.innerText = status.charAt(0).toUpperCase() + status.slice(1);
+                        statusElement.className = "status-text " + status;
+                    }
+                });
+            });
+
+            loadMessages();
+        }
+
+        function logout() {
+            db.ref('status/' + currentUser).set('offline');
+            db.ref('typing/' + currentUser).set(false);
+            localStorage.removeItem("ash_chat_user");
+            location.reload();
+        }
+
+        function sendMessage() {
+            const inputField = document.getElementById('msg-input');
+            const text = inputField.value;
+            if (text.trim() === "") return;
+            
+            db.ref('typing/' + currentUser).set(false); // Stop typing status on send
+            const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+            
+            db.ref('messages').push({
+                sender: currentUser,
+                text: text,
+                time: timeNow
+            });
+            inputField.value = "";
+        }
+
+        function loadMessages() {
+            const list = document.getElementById('message-list');
+            db.ref('messages').on('child_added', (snapshot) => {
+                const data = snapshot.val();
+                const isMe = data.sender === currentUser;
+                const bubble = document.createElement('div');
+                bubble.className = `msg-bubble ${isMe ? 'sent' : 'received'}`;
+                bubble.innerHTML = `
+                    <div>${data.text}</div>
+                    <div class="bubble-footer">
+                        <span class="msg-time">${data.time}</span>
+                        ${isMe ? '<span class="check-mark">✓✓</span>' : ''}
+                    </div>
+                `;
+                list.appendChild(bubble);
+                list.scrollTop = list.scrollHeight; 
+            });
+        }
+        // Dropdown toggle karne ke liye
+function toggleMenu() {
+    const menu = document.getElementById('main-menu');
+    menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+}
+
+// Settings Modal ko kholne ke liye
+function openSettings() {
+    document.getElementById('settings-modal').style.display = 'flex';
+    document.getElementById('main-menu').style.display = 'none';
+}
+
+// Firebase se History saaf karne ka function
+function confirmClearChat() {
+    if (confirm("Do you want to clear all messages for everyone?")) {
+        db.ref('messages').remove().then(() => {
+            document.getElementById('message-list').innerHTML = ""; // Screen saaf karein
+            alert("Chat History Deleted.");
+            closeChatHistory();
+            closeSettings();
+        }).catch(err => alert("Error: " + err.message));
+    }
+}
+
+// Menu ke bahar click karne par menu apne aap band ho jaye
+window.onclick = function(event) {
+    if (!event.target.matches('.fa-ellipsis-vertical')) {
+        const menu = document.getElementById('main-menu');
+        if (menu) menu.style.display = 'none';
+    }
+};
+
+
+function openSettings() {
+    document.getElementById('settings-modal').style.display = 'flex';
+    document.getElementById('main-menu').style.display = 'none';
+}
+
+function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
+
+function openChatHistory() { document.getElementById('history-modal').style.display = 'flex'; }
+
+function closeChatHistory() { document.getElementById('history-modal').style.display = 'none'; }
+
+function confirmClearChat() {
+    if (confirm("Are you sure you want to delete all messages?")) {
+        // Firebase se messages delete karna
+        db.ref('messages').remove().then(() => {
+            alert("Chat history cleared!");
+            document.getElementById('message-list').innerHTML = "";
+            closeChatHistory();
+            closeSettings();
+        });
+    }
+}
+
+// Menu ke bahar click karne par menu band ho jaye
+window.onclick = function(event) {
+    if (!event.target.matches('.fa-ellipsis-vertical')) {
+        document.getElementById('main-menu').style.display = 'none';
+    }
+}
+
+        
+    </script>
+    
+    
+    <div id="settings-modal" class="full-screen-modal" style="display: none;">
+    <div class="modal-header">
+        <i class="fa-solid fa-arrow-left" onclick="closeSettings()"></i>
+        <span>Settings</span>
+    </div>
+    <div class="modal-item" onclick="openChatHistory()">
+        <i class="fa-solid fa-message"></i>
+        <div>
+            <strong>Chats</strong>
+            <p>Theme, wallpapers, chat history</p>
+        </div>
+    </div>
+</div>
+
+<div id="history-modal" class="full-screen-modal" style="display: none;">
+    <div class="modal-header">
+        <i class="fa-solid fa-arrow-left" onclick="closeChatHistory()"></i>
+        <span>Chat history</span>
+    </div>
+    <div class="modal-item" onclick="confirmClearChat()" style="color: #d32f2f;">
+        <i class="fa-solid fa-trash-can"></i>
+        <div>
+            <strong>Delete all chats</strong>
+            <p>This will clear all messages for everyone</p>
+        </div>
+    </div>
+</div>
+
+    
+</body>
+</html>

@@ -93,6 +93,25 @@
         .bubble-footer { display: flex; align-items: center; justify-content: flex-end; margin-top: -2px; }
         .msg-time { font-size: 11px; color: #667781; }
         .check-mark { color: #53bdeb; font-size: 14px; margin-left: 3px; }
+        
+
+/* Default Grey Color for Sent Messages */
+.check-mark { 
+    color: #8696a0 !important; 
+    font-size: 14px; 
+    margin-left: 3px; 
+}
+
+/* Blue Color for Read Messages */
+.check-mark.blue-tick { 
+    color: #53bdeb !important; 
+}
+
+        
+
+
+
+
 
         .input-bar { background: #f0f2f5; padding: 10px 16px; display: flex; align-items: center; gap: 10px; }
         #msg-input { border: none; padding: 10px 15px; border-radius: 20px; flex: 1; outline: none; font-size: 15px; background: white; }
@@ -584,40 +603,97 @@ window.onbeforeunload = function() {
 };
 
 
-        function sendMessage() {
-            const inputField = document.getElementById('msg-input');
-            const text = inputField.value;
-            if (text.trim() === "") return;
-            
-            db.ref('typing/' + currentUser).set(false); // Stop typing status on send
-            const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-            
-            db.ref('messages').push({
-                sender: currentUser,
-                text: text,
-                time: timeNow
-            });
-            inputField.value = "";
+function sendMessage() {
+    const inputField = document.getElementById('msg-input');
+    const text = inputField.value;
+    
+    // 1. Check karein agar message khali hai
+    if (text.trim() === "") return;
+    
+    // 2. Typing status ko turant band karein
+    db.ref('typing/' + currentUser).set(false);
+    
+    // 3. Current time nikaalein (HH:MM AM/PM format)
+    const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+    
+    // 4. STEP A: Chat Message bhejte waqt 'sent' status add karein (Ticks ke liye)
+    db.ref('messages').push({
+        sender: currentUser,
+        text: text,
+        time: timeNow,
+        status: "sent" 
+    });
+
+    // 5. STEP B: Notification Trigger (Isse Kodular ko alert milega)
+    db.ref('last_notif').set({
+        sender: currentUser,
+        text: text,
+        timestamp: Date.now() // Naya time taaki DataChanged trigger ho
+    });
+
+    // 6. Input box ko khali karein
+    inputField.value = "";
+}
+
+
+function loadMessages() {
+    const list = document.getElementById('message-list');
+    const startTime = Date.now(); // App khulne ka waqt
+
+    // Ek hi listener rakhein
+    db.ref('messages').on('child_added', (snapshot) => {
+        const data = snapshot.val();
+        const msgId = snapshot.key;
+        const isMe = data.sender === currentUser;
+
+        // FIXED LOGIC:
+        // Sirf un messages ko 'read' mark karo jo:
+        // 1. Saamne wale ne bheje hon (!isMe)
+        // 2. Status 'read' na ho
+        // 3. App visible ho
+        // 4. Sabse Zaroori: Message bhejne ka waqt app khulne ke BAAD ka ho (Real-time message)
+        if (!isMe && data.status !== "read" && document.visibilityState === 'visible') {
+            // Hum ek chota delay denge taaki UI load ho jaye
+            setTimeout(() => {
+                db.ref('messages/' + msgId).update({ status: "read" });
+            }, 500);
         }
 
-        function loadMessages() {
-            const list = document.getElementById('message-list');
-            db.ref('messages').on('child_added', (snapshot) => {
-                const data = snapshot.val();
-                const isMe = data.sender === currentUser;
-                const bubble = document.createElement('div');
-                bubble.className = `msg-bubble ${isMe ? 'sent' : 'received'}`;
-                bubble.innerHTML = `
-                    <div>${data.text}</div>
-                    <div class="bubble-footer">
-                        <span class="msg-time">${data.time}</span>
-                        ${isMe ? '<span class="check-mark">✓✓</span>' : ''}
-                    </div>
-                `;
-                list.appendChild(bubble);
-                list.scrollTop = list.scrollHeight; 
-            });
+        const bubble = document.createElement('div');
+        bubble.id = "msg-" + msgId;
+        bubble.className = `msg-bubble ${isMe ? 'sent' : 'received'}`;
+        
+        let tickHTML = "";
+        if (isMe) {
+            let blueClass = (data.status === "read") ? "blue-tick" : "";
+            tickHTML = `<span class="check-mark ${blueClass}" id="tick-${msgId}">✓✓</span>`;
         }
+
+        bubble.innerHTML = `
+            <div>${data.text}</div>
+            <div class="bubble-footer">
+                <span class="msg-time">${data.time}</span>
+                ${tickHTML}
+            </div>
+        `;
+        list.appendChild(bubble);
+        list.scrollTop = list.scrollHeight; 
+    });
+
+    // Ticks update hone par color change karne ke liye
+    db.ref('messages').on('child_changed', (snapshot) => {
+        const data = snapshot.val();
+        const msgId = snapshot.key;
+        const tickElement = document.getElementById("tick-" + msgId);
+        
+        if (tickElement && data.status === "read") {
+            tickElement.classList.add("blue-tick");
+        }
+    });
+}
+
+
+
         // Dropdown toggle karne ke liye
 function toggleMenu() {
     const menu = document.getElementById('main-menu');

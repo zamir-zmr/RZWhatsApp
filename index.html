@@ -16,19 +16,62 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; background: #dadbd3; height: 100vh; display: flex; flex-direction: column; }
         
- 
- #login-screen { 
-    display: none; /* Default hidden rakhein, JS decide karega kab dikhana hai */
-    flex: 1; 
-    justify-content: center; 
-    align-items: center; 
-    background: #f0f2f5; 
+        
+#login-screen { flex: 1; display: flex; justify-content: center; align-items: center; background: #f0f2f5; }
+
+/* Login Box entry animation */
+.login-box {
+    animation: slideUpFade 0.6s ease-out;
 }
 
-.advanced-popup, #blur-overlay {
-    display: none !important; /* !important lagane se flicker bilkul band ho jayega */
+@keyframes slideUpFade {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
+/* Professional Pop-up Card View */
+.advanced-popup {
+    display: none;
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    background: white;
+    width: 320px;
+    padding: 30px 20px;
+    border-radius: 20px;
+    text-align: center;
+    z-index: 2000;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    border-top: 6px solid #ea4335;
+}
+
+/* Shake Animation for Denied Access */
+.shake-denied {
+    animation: shake 0.4s ease-in-out !important;
+}
+
+/* Scale-up Animation for Popup Appearance */
+.pop-up-show {
+    display: block !important;
+    animation: popIn 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
+}
+
+@keyframes popIn {
+    from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+    to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translate(-50%, -50%); }
+    25% { transform: translate(-54%, -50%); }
+    75% { transform: translate(-46%, -50%); }
+}
+
+
+
+        .login-box { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 17px 50px 0 rgba(0,0,0,.19); width: 350px; text-align: center; }
+        .login-box h3 { color: #008069; margin-bottom: 20px; }
+        input[type="text"], input[type="password"] { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px; outline: none; }
         
         #chat-interface { display: none; flex-direction: column; height: 100vh; max-width: 600px; margin: 0 auto; width: 100%; background: #efeae2; position: relative; }
         
@@ -183,23 +226,8 @@
     border-top: 5px solid #ea4335;
 }
 
-.error-popup i {
-    font-size: 40px;
-    color: #ea4335;
-    margin-bottom: 15px;
-}
 
-.error-popup button {
-    margin-top: 15px;
-    padding: 8px 25px;
-    background: #008069;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
 
-/* Background blur jab error aaye */
 
 /* Professional Blur Background */
 #blur-overlay {
@@ -293,55 +321,46 @@
 @keyframes popIn { to { transform: translate(-50%, -50%) scale(1); } }
 
 @keyframes shake {
-    0%, 100% { transform: translate(-50%, -50%); }
-    20%, 60% { transform: translate(-55%, -50%); }
-    40%, 80% { transform: translate(-45%, -50%); }
+
+
+
+/* Professional Pop-up Card View */
+.advanced-popup {
+    display: none;
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px); /* Glass effect */
+    width: 320px;
+    padding: 30px 20px;
+    border-radius: 20px;
+    text-align: center;
+    z-index: 2000;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); /* Professional Shadow */
+    border-top: 6px solid #ea4335; /* Error Red Accent */
 }
 
-.popup-icon {
-    font-size: 50px;
-    color: #ea4335;
-    margin-bottom: 15px;
+/* Shake Animation for Access Denied */
+.denied-shake {
+    animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
 }
 
-.popup-btn {
-    margin-top: 20px;
-    width: 100%;
-    padding: 12px;
-    background: #008069;
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-weight: bold;
-    font-size: 16px;
-    cursor: pointer;
-    transition: background 0.2s;
+@keyframes shake {
+    10%, 90% { transform: translate(-50%, -50%) translate3d(-1px, 0, 0); }
+  
+  
+
+/* Pop-in Effect */
+.pop-in {
+    display: block !important;
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
-.popup-btn:active { background: #005e4d; transform: scale(0.98); }
-
-.dropdown-menu {
-    position: absolute; right: 0; top: 40px; background: white;
-    color: #333; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    border-radius: 8px; width: 150px; z-index: 1001; padding: 10px 0;
+@keyframes popIn {
+    from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+    to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
 }
-.dropdown-menu div { padding: 12px 20px; cursor: pointer; }
-.dropdown-menu div:hover { background: #f5f5f5; }
-
-.full-screen-modal {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: white; z-index: 2000; display: flex; flex-direction: column;
-}
-.modal-header {
-    background: #008069; color: white; padding: 18px;
-    display: flex; align-items: center; gap: 25px; font-size: 19px;
-}
-.modal-item {
-    display: flex; align-items: center; padding: 20px;
-    gap: 25px; border-bottom: 1px solid #f0f0f0; cursor: pointer;
-}
-.modal-item i { font-size: 22px; color: #667781; }
-.modal-item p { font-size: 13px; color: #667781; }
 
     
     </style>
@@ -445,6 +464,7 @@ window.onload = () => {
         document.getElementById('chat-interface').style.display = "none";
     }
 };
+
 function login() {
     const u = document.getElementById('username').value.trim();
     const p = document.getElementById('password').value.trim();
@@ -452,53 +472,56 @@ function login() {
     const overlay = document.getElementById('blur-overlay');
     const msgText = document.getElementById('error-message-text');
 
-    popup.classList.remove('shake-animation'); // Reset animation
+    // Reset animations
+    popup.classList.remove('pop-up-show', 'shake-denied');
 
     let errorMessage = "";
 
-    // Validation sequence
     if (u === "") {
-        errorMessage = "Please first enter your Name";
+        errorMessage = "Please enter your Name";
     } else if (p === "") {
         errorMessage = "Please enter your Password";
     } else if (u !== "Zamir" && u !== "Rahima") {
-        errorMessage = "Wrong Username! This user is not registered.";
+        errorMessage = "Wrong Username!";
     } else if (p !== "123") {
         errorMessage = "Wrong Password! Access Denied.";
-        popup.classList.add('shake-animation'); // Shake only on wrong password
     }
 
     if (errorMessage !== "") {
         msgText.innerText = errorMessage;
-        popup.style.display = 'block';
         overlay.style.display = 'block';
+        
+        // Trigger Pop-in animation
+        popup.classList.add('pop-up-show');
+
+        // Agar user ya password galat hai, toh shake karein
+        if(errorMessage.includes("Wrong")) {
+            setTimeout(() => {
+                popup.classList.add('shake-denied');
+            }, 50);
+        }
         return;
     }
 
-    // Success logic
     localStorage.setItem("ash_chat_user", u);
     setupChat(u);
 }
 
 function closeError() {
-    document.getElementById('error-popup').style.display = 'none';
-    document.getElementById('blur-overlay').style.display = 'none';
+    const popup = document.getElementById('error-popup');
+    const overlay = document.getElementById('blur-overlay');
+
+    // 1. Animation classes remove karein taaki popup hide ho jaye
+    popup.classList.remove('pop-up-show', 'shake-denied');
+    
+    // 2. Direct display none karein safety ke liye
+    popup.style.display = 'none';
+    overlay.style.display = 'none';
+    
+    // 3. Error text saaf karein
+    document.getElementById('error-message-text').innerText = "";
 }
 
-
-function closeError() {
-    document.getElementById('error-popup').style.display = 'none';
-    document.getElementById('blur-overlay').style.display = 'none';
-    document.getElementById('error-popup').classList.remove('shake-animation');
-}
-
-
-function closeError() {
-    document.getElementById('error-popup').style.display = 'none';
-    document.getElementById('blur-overlay').style.display = 'none';
-    // Remove shake class so it can play again
-    document.getElementById('error-popup').classList.remove('shake-animation');
-}
 
 
 // Popup dikhane ke liye helper function
@@ -508,16 +531,8 @@ function showError(msg) {
     document.getElementById('blur-overlay').style.display = 'block';
 }
 
-function closeError() {
-    document.getElementById('error-popup').style.display = 'none';
-    document.getElementById('blur-overlay').style.display = 'none';
-}
 
 
-function closeError() {
-    document.getElementById('error-popup').style.display = 'none';
-    document.getElementById('blur-overlay').style.display = 'none';
-}
 
         // --- NEW: Typing Logic ---
         function handleTyping() {
@@ -529,6 +544,7 @@ function closeError() {
             }, 2000); // Hide "Typing..." after 2 seconds of silence
         }
 
+
 function setupChat(user) {
     currentUser = user;
     const talkingTo = (user === "Zamir") ? "Rahima" : "Zamir";
@@ -538,54 +554,58 @@ function setupChat(user) {
     document.getElementById('display-name').innerText = talkingTo;
     document.getElementById('user-initial').innerText = talkingTo.charAt(0);
 
-    // --- My Status (Online/Offline Logic) ---
+    // --- My Status Logic ---
     const myStatusRef = db.ref('status/' + user);
     db.ref('.info/connected').on('value', (snapshot) => {
         if (snapshot.val() === false) return;
-        
-        // Jaise hi app band ho (APK kill ho), turant Time save ho jaye
         myStatusRef.onDisconnect().set(Date.now()); 
         myStatusRef.set('online');
     });
 
-    // --- Monitor Friend's Status & Last Seen ---
+    // --- Monitor Friend's Status & Last Seen (CLEAN LOGIC) ---
+    const statusElement = document.getElementById('user-status');
+    
     db.ref('status/' + talkingTo).on('value', (statusSnap) => {
         const val = statusSnap.val();
-        const statusElement = document.getElementById('user-status');
 
+        // 1. Pehle Typing check karein
         db.ref('typing/' + talkingTo).on('value', (typingSnap) => {
             if (typingSnap.val() === true) {
                 statusElement.innerText = "typing...";
                 statusElement.className = "status-text typing-indicator";
-            } else if (val === 'online') {
+            } 
+            // 2. Agar typing nahi hai toh status check karein
+            else if (val === 'online') {
                 statusElement.innerText = "Online";
                 statusElement.className = "status-text online";
-            } else if (val && typeof val === 'number') {
+            } 
+            // 3. Agar online nahi hai toh timing dikhayein
+            else if (val && typeof val === 'number') {
                 const lastTime = new Date(val).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 statusElement.innerText = "last seen today at " + lastTime;
                 statusElement.className = "status-text offline";
-            } else {
+            } 
+            else {
                 statusElement.innerText = "Offline";
+                statusElement.className = "status-text offline";
             }
         });
     });
 
     loadMessages();
 
-    // --- INSTANT STATUS UPDATE LOGIC ---
-    // Jab user mobile ka Home button dabaye ya app minimize kare
+    // Instant Status Update (Minimize/Maximize)
     document.addEventListener("visibilitychange", () => {
         if (currentUser) {
             if (document.visibilityState === 'hidden') {
-                // Turant last seen set karega (bin 5-10 sec wait kiye)
                 db.ref('status/' + currentUser).set(Date.now());
             } else {
-                // Wapas aate hi online
                 db.ref('status/' + currentUser).set('online');
             }
         }
     });
 }
+
 
 function logout() {
     // Logout hote hi 'offline' ki jagah current time bhej dega
@@ -603,36 +623,35 @@ window.onbeforeunload = function() {
 };
 
 
+
 function sendMessage() {
     const inputField = document.getElementById('msg-input');
     const text = inputField.value;
     
-    // 1. Check karein agar message khali hai
     if (text.trim() === "") return;
     
-    // 2. Typing status ko turant band karein
     db.ref('typing/' + currentUser).set(false);
     
-    // 3. Current time nikaalein (HH:MM AM/PM format)
     const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
     
-    // 4. STEP A: Chat Message bhejte waqt 'sent' status add karein (Ticks ke liye)
     db.ref('messages').push({
         sender: currentUser,
         text: text,
         time: timeNow,
-        status: "sent" 
+        status: "sent",
+        timestamp: Date.now() // Blue tick fix ke liye pehle bataya gaya timestamp
     });
 
-    // 5. STEP B: Notification Trigger (Isse Kodular ko alert milega)
     db.ref('last_notif').set({
         sender: currentUser,
         text: text,
-        timestamp: Date.now() // Naya time taaki DataChanged trigger ho
+        timestamp: Date.now()
     });
 
-    // 6. Input box ko khali karein
     inputField.value = "";
+
+    // --- KEYBOARD FIX: Focus wapas input field par layein ---
+    inputField.focus(); 
 }
 
 

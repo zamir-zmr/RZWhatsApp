@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Pro - Ash Bakes</title>
+    <title>RZWhatsApp</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
@@ -334,7 +334,7 @@
 
     <div id="login-screen">
         <div class="login-box">
-            <h3>WhatsApp Admin</h3>
+            <h3>WhatsApp login</h3>
             <input type="text" id="username" placeholder="Name">
             <input type="password" id="password" placeholder="Password">
             <button onclick="login()" style="width:100%; padding:12px; background:#00a884; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">LOG IN</button>
@@ -442,7 +442,7 @@ function login() {
         errorMessage = "Please first enter your Name";
     } else if (p === "") {
         errorMessage = "Please enter your Password";
-    } else if (u !== "Zamir" && u !== "Abc") {
+    } else if (u !== "Zamir" && u !== "Rahima") {
         errorMessage = "Wrong Username! This user is not registered.";
     } else if (p !== "123") {
         errorMessage = "Wrong Password! Access Denied.";
@@ -512,7 +512,7 @@ function closeError() {
 
         function setupChat(user) {
             currentUser = user;
-            const talkingTo = (user === "Zamir") ? "Abc" : "Zamir";
+            const talkingTo = (user === "Zamir") ? "Rahima" : "Zamir";
             
             document.getElementById('login-screen').style.display = "none";
             document.getElementById('chat-interface').style.display = "flex";

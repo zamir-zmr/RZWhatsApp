@@ -114,8 +114,8 @@
 
 /* Status Indicators */
 .status-text { font-size: 12px; font-weight: 400; }
-.online { color: #80ffdb; } /* Light green for online status */
-.typing-indicator { color: #80ffdb; font-style: italic; }
+
+
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -232,15 +232,18 @@
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
-.online { color: #80ffdb !important; }
-.typing-indicator { color: #80ffdb !important; font-style: italic; }
-.offline { color: #cfd8dc !important; }
+
+/* Status Text Colors */
+.online { color: #00a88jj4 !important; } /* Green */
+.typing-indicator { color: #14ff41 !important; font-style: italic; } /* Red */
+
+
+.offline { color: #14ff41 !important; }
 
 /* Inke purane style ko replace karein */
 .status-text { font-size: 12px; display: block; margin-top: 2px; }
-.online { color: #80ffdb !important; font-weight: 600; }
-.typing-indicator { color: #ffffff !important; font-style: italic; animation: pulse 1s infinite; }
-.offline { color: #e0e0e0 !important; opacity: 0.8; }
+
+
 
 @keyframes pulse {
     0% { opacity: 1; }
@@ -258,19 +261,17 @@
 
 
 /* Blue Tick Logic */
-.status-icon i {
-    font-size: 13px !important;
-    margin-left: 5px;
-}
 
 /* Default Grey color */
-.unread-tick {
-    color: #8696a0 !important;
-}
 
 /* Seen Blue color */
-.read-tick {
-    color: #34b7f1 !important;
+/* Blue Tick logic - Forceful Colors */
+.status-icon .read-tick { 
+    color: #34b7f1 !important; /* WhatsApp Blue */
+}
+
+.status-icon .unread-tick { 
+    color: #8696a0 !important; /* Standard Grey */
 }
 
 
@@ -363,12 +364,17 @@
 
 
         
-        
-        .status-text { font-size: 12px; }
-        .typing-indicator { color: #fff; font-style: italic; font-weight: 500; }
-        .online { color: #fff; }
-        .offline { color: #cfd8dc; }
-    
+        /* Blue Tick Logic - CSS */
+.unread-tick {
+    color: #8696a0 !important; /* Grey Color */
+}
+
+.read-tick {
+    color: #34b7f1 !important; /* WhatsApp Blue Color */
+}
+
+
+
     
     /* Purane .input-bar ko hatakar ye paste karein */
 .input-wrapper {
@@ -766,44 +772,60 @@ function showError(msg) {
 
 
         // --- NEW: Typing Logic ---
-        function handleTyping() {
-            db.ref('typing/' + currentUser).set(true);
-            
-            clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => {
-                db.ref('typing/' + currentUser).set(false);
-            }, 2000); // Hide "Typing..." after 2 seconds of silence
-        }
 
 
 // --- 1. Global Presence & Status Logic ---
-function setupPresence(user) {
-    const myStatusRef = db.ref('status/' + user);
-    const connectedRef = db.ref('.info/connected');
 
+// --- 1. ONLINE & LAST SEEN SETUP ---
+
+// --- 1. ONLINE & LAST SEEN SETUP ---
+function setupPresence() {
+    const userStatusRef = db.ref('status/' + currentUser);
+    const connectedRef = db.ref('.info/connected');
     connectedRef.on('value', (snap) => {
         if (snap.val() === true) {
-            // Jab user connect ho: online set karein aur disconnect par timestamp lock karein
-            myStatusRef.onDisconnect().set(firebase.database.ServerValue.TIMESTAMP);
-            myStatusRef.set('online');
+            userStatusRef.onDisconnect().set({
+                state: 'offline',
+                last_changed: firebase.database.ServerValue.TIMESTAMP
+            });
+            userStatusRef.set({
+                state: 'online',
+                last_changed: firebase.database.ServerValue.TIMESTAMP
+            });
         }
     });
-
-    // Tab switch ya minimize par status update
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-        db.ref('messages').once('value', (snapshot) => {
-            snapshot.forEach((child) => {
-                const data = child.val();
-                if (data.sender !== currentUser && data.status !== "read") {
-                    db.ref('messages/' + child.key).update({ status: "read" });
-                }
-            });
-        });
-    }
-});
-
 }
+
+
+
+function checkOnlineStatus() {
+    let friendName = (currentUser === "Zamir") ? "Rahima" : "Zamir";
+    const statusElement = document.getElementById('user-status');
+
+    db.ref('status/' + friendName).on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
+
+        if (data.state === 'online') {
+            statusElement.innerText = "Online";
+            statusElement.style.color = "#00a884"; // Green for Online
+        } else {
+            // AM/PM Logic for Last Seen
+            const date = new Date(data.last_changed);
+            let hours = date.getHours();
+            let minutes = date.getMinutes();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12 || 12; 
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            const timeStr = hours + ':' + minutes + ' ' + ampm;
+            
+            statusElement.innerText = "last seen today at " + timeStr;
+            statusElement.style.color = "#667781"; // Grey for Last Seen
+        }
+    });
+}
+
+
 
 function setupChat(user) {
     currentUser = user;
@@ -883,50 +905,7 @@ window.onbeforeunload = function() {
 
 
 
-function sendMessage() {
-    const input = document.getElementById('msg-input');
-    const text = input.value.trim();
-    if (text === "") return;
 
-    const now = new Date();
-    const timeStr = now.getHours().toString().padStart(2, '0') + ":" + 
-                    now.getMinutes().toString().padStart(2, '0');
-
-    // 1. Message bhej rahe hain
-    db.ref('messages').push({
-        sender: currentUser,
-        text: text,
-        time: timeStr,
-        status: "sent"
-    });
-
-    // 2. Input box khali karein
-    input.value = "";
-
-    // 3. TYPING STOP LOGIC (Important Fix)
-    // Message bhejte hi database mein typing ko turant false karein
-    db.ref('typing/' + currentUser).set(false);
-    
-    // Purana timer bhi clear karein taaki wo baad mein trigger na ho
-    clearTimeout(window.typingTimer);
-
-    // Auto scroll niche tak
-    const list = document.getElementById('message-list');
-    list.scrollTop = list.scrollHeight;
-}
-
-function handleTyping() {
-    // Apne path par 'true' set karein
-    db.ref('typing/' + currentUser).set(true);
-    
-    // Purana timer clear karein
-    clearTimeout(window.typingTimer);
-    
-    // Agar 1 second tak kuch nahi likha, toh automatically typing band
-    window.typingTimer = setTimeout(() => {
-        db.ref('typing/' + currentUser).set(false);
-    }, 1000); 
-}
 
 let holdTimer;
 let isSelectionMode = false;
@@ -936,25 +915,22 @@ let currentMsgToDelete = null;
 function loadMessages() {
     const list = document.getElementById('message-list');
     
-    // A. BLUE TICK UPDATER (Real-time color change jab friend dekhega)
+    // 1. BLUE TICK UPDATER (Jab status change ho, icon color badle)
     db.ref('messages').on('child_changed', (snapshot) => {
         const data = snapshot.val();
-        const msgId = snapshot.key;
-        const iconElement = document.getElementById("tick-" + msgId);
-        
+        const iconElement = document.getElementById("tick-" + snapshot.key);
         if (iconElement && data.status === "read") {
-            iconElement.classList.remove('unread-tick');
-            iconElement.classList.add('read-tick');
+            iconElement.className = "fa-solid fa-check-double read-tick";
         }
     });
 
-    // B. MESSAGE LOADER
+    // 2. MESSAGE LOADER & SELECTION LOGIC
     db.ref('messages').on('child_added', (snapshot) => {
         const data = snapshot.val();
         const msgId = snapshot.key;
         const isMe = data.sender === currentUser;
 
-        // Auto-read logic: Jab aap screen par hain toh message 'read' ho jaye
+        // Auto-read logic
         if (!isMe && data.status !== "read" && document.visibilityState === 'visible') {
             db.ref('messages/' + msgId).update({ status: "read" });
         }
@@ -963,17 +939,20 @@ function loadMessages() {
         bubble.id = "msg-" + msgId;
         bubble.className = `msg-bubble ${isMe ? 'sent' : 'received'}`;
         
-        // Multi-select delete ke liye click logic
+        // --- SELECTION LOGIC START ---
+        // Click logic: Agar selection mode ON hai toh click karne par select/unselect hoga
         bubble.onclick = () => {
-            if (window.isSelectionMode) toggleSelect(msgId);
+            if (isSelectionMode) toggleMessageSelection(msgId);
         };
 
+        // Hold logic: Sirf apne message par hold karne se mode start hoga
         if (isMe) {
             bubble.onmousedown = () => startHold(msgId);
             bubble.onmouseup = () => clearHold();
             bubble.ontouchstart = () => startHold(msgId); 
             bubble.ontouchend = () => clearHold();
         }
+        // --- SELECTION LOGIC END ---
 
         let tickClass = (data.status === "read") ? "read-tick" : "unread-tick";
         let statusHTML = isMe ? `<span class="status-icon">
@@ -987,75 +966,87 @@ function loadMessages() {
                 ${statusHTML}
             </div>
         `;
+        
         list.appendChild(bubble);
         list.scrollTop = list.scrollHeight; 
     });
 
-    // C. TYPING LISTENER (Zamir & Rahima Logic - Fixed)
-    db.ref('typing').on('value', (snapshot) => {
-        const typingData = snapshot.val() || {};
-        const statusElement = document.getElementById('user-status');
-        
-        // Saamne wale ka naam dhoondhna
-        let friendName = (currentUser === "Zamir") ? "Rahima" : "Zamir";
-
-        if (typingData[friendName] === true) {
-            statusElement.innerText = "typing...";
-            statusElement.style.color = "#00a884";
-        } else {
-            // Typing band hone par Online/Offline status check karein
-            if (typeof checkOnlineStatus === "function") {
-                checkOnlineStatus();
-            } else {
-                statusElement.innerText = "Online";
-                statusElement.style.color = "#667781";
-            }
-        }
-    });
-
-    // D. DELETE LISTENER
+    // 3. DELETE LISTENER (Jab Firebase se delete ho toh screen se hat jaye)
     db.ref('messages').on('child_removed', (snapshot) => {
         const element = document.getElementById("msg-" + snapshot.key);
         if (element) element.remove();
     });
+
+    // 4. Presence & Typing Start
+    setupTypingListener();
+    setupPresence();
 }
 
+
 // 2. TYPING HANDLER (Likhte waqt database update karna)
+
+// --- 2. TYPING SYSTEM ---
+
+// --- 2. TYPING SYSTEM ---
 function handleTyping() {
     db.ref('typing/' + currentUser).set(true);
-    
     clearTimeout(window.typingTimer);
     window.typingTimer = setTimeout(() => {
         db.ref('typing/' + currentUser).set(false);
     }, 1500); 
 }
 
+
+function setupTypingListener() {
+    db.ref('typing').on('value', (snapshot) => {
+        const typingData = snapshot.val() || {};
+        const statusElement = document.getElementById('user-status');
+        let friendName = (currentUser === "Zamir") ? "Rahima" : "Zamir";
+
+        if (typingData[friendName] === true) {
+            statusElement.innerText = "typing...";
+            statusElement.style.color = "#ea4335"; // Red for Typing
+        } else {
+            // Typing khatam hone par wapas Online/Last Seen check karein
+            checkOnlineStatus();
+        }
+    });
+}
+
+
+
 // 3. SEND MESSAGE UPDATED (Message bhejte hi typing stop)
+
+// --- 3. SEND MESSAGE (With Typing Stop) ---
+
+// --- 3. SEND MESSAGE (AM/PM + Typing Stop) ---
 function sendMessage() {
     const input = document.getElementById('msg-input');
     const text = input.value.trim();
     if (text === "") return;
 
+    // AM/PM Time Logic
     const now = new Date();
-    const timeStr = now.getHours().toString().padStart(2, '0') + ":" + 
-                    now.getMinutes().toString().padStart(2, '0');
+    let hours = now.getHours();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    let minutes = now.getMinutes().toString().padStart(2, '0');
+    const timeStr = `${hours}:${minutes} ${ampm}`;
 
     db.ref('messages').push({
         sender: currentUser,
         text: text,
         time: timeStr,
-        status: "sent"
+        status: "sent" // Default status
     });
 
     input.value = "";
-    
-    // Sabse zaroori: Message bhejte hi typing turant band karein
     db.ref('typing/' + currentUser).set(false);
     clearTimeout(window.typingTimer);
-
-    const list = document.getElementById('message-list');
-    list.scrollTop = list.scrollHeight;
+    document.getElementById('message-list').scrollTop = document.getElementById('message-list').scrollHeight;
 }
+
+
 
 // Typing handle function (Input field ke liye)
 

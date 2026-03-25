@@ -228,6 +228,30 @@
     -webkit-touch-callout: none; /* iOS Safari menu ko rokne ke liye */
 }
 
+/* Selection Mode overlay */
+
+/* Delete Action Bar (Top bar jo selection ke waqt dikhegi) */
+/* Selected message ka color change karne ke liye */
+.msg-bubble.selected {
+    background-color: #bbdefb !important;
+    transition: background-color 0.3s ease;
+}
+
+/* Upar ki Green Selection Bar */
+#selection-bar {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 65px;
+    background: #008069;
+    color: white;
+    z-index: 4000;
+    align-items: center;
+    padding: 0 20px;
+    gap: 30px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+
 
 .send-btn {
     background: #00a884;
@@ -819,7 +843,9 @@ function sendMessage() {
 
 
 let holdTimer;
-
+let isSelectionMode = false;
+let selectedMessages = []; // Multi-select ke liye IDs yahan store hongi
+let currentMsgToDelete = null;
 
 function loadMessages() {
     const list = document.getElementById('message-list');
@@ -836,11 +862,23 @@ function loadMessages() {
         const bubble = document.createElement('div');
         bubble.id = "msg-" + msgId;
         bubble.className = `msg-bubble ${isMe ? 'sent' : 'received'}`;
-        
+
+        bubble.oncontextmenu = (e) => {
+            e.preventDefault();
+            return false;
+        };
+
+        // Click Logic: Agar selection mode on hai toh select kare, varna normal click
+        bubble.onclick = () => {
+            if (isSelectionMode) {
+                toggleMessageSelection(msgId);
+            }
+        };
+
         if (isMe) {
             bubble.onmousedown = () => startHold(msgId);
             bubble.onmouseup = () => clearHold();
-            bubble.ontouchstart = () => startHold(msgId); 
+            bubble.ontouchstart = () => startHold(msgId);
             bubble.ontouchend = () => clearHold();
         }
 
@@ -866,16 +904,14 @@ function loadMessages() {
     });
 }
 
-// Long Press Functions
-let currentMsgToDelete = null;
+// --- Selection Logic Functions ---
 
-// Long Press Functions
 function startHold(id) {
-    // Mobile vibration feel ke liye (Optional)
-    if (navigator.vibrate) navigator.vibrate(40);
+    if (isSelectionMode) return; // Mode on hai toh timer nahi chalega
     
+    if (navigator.vibrate) navigator.vibrate(40);
     holdTimer = setTimeout(() => {
-        openDeleteModal(id); // confirmDelete ki jagah ye call hoga
+        enterSelectionMode(id);
     }, 800); 
 }
 
@@ -883,18 +919,81 @@ function clearHold() {
     clearTimeout(holdTimer);
 }
 
+function enterSelectionMode(id) {
+    isSelectionMode = true;
+    document.getElementById('selection-bar').style.display = 'flex';
+    toggleMessageSelection(id);
+}
+
+function toggleMessageSelection(id) {
+    const el = document.getElementById("msg-" + id);
+    const index = selectedMessages.indexOf(id);
+
+    if (index > -1) {
+        selectedMessages.splice(index, 1);
+        el.classList.remove('selected');
+    } else {
+        selectedMessages.push(id);
+        el.classList.add('selected');
+    }
+
+    document.getElementById('select-count').innerText = selectedMessages.length;
+    if (selectedMessages.length === 0) exitSelectionMode();
+}
+
+function exitSelectionMode() {
+    isSelectionMode = false;
+    selectedMessages.forEach(id => {
+        const el = document.getElementById("msg-" + id);
+        if (el) el.classList.remove('selected');
+    });
+    selectedMessages = [];
+    document.getElementById('selection-bar').style.display = 'none';
+}
+
+function deleteSelectedMessages() {
+    if (confirm(`Delete ${selectedMessages.length} messages for everyone?`)) {
+        selectedMessages.forEach(id => {
+            db.ref('messages/' + id).remove();
+        });
+        exitSelectionMode();
+    }
+}
+
+// Purane Modal functions bhi barkarar hain
+
+
+
 // Professional Modal Functions
 function openDeleteModal(id) {
     currentMsgToDelete = id;
-    document.getElementById('delete-overlay').style.display = 'block';
-    document.getElementById('delete-modal').style.display = 'block';
+    const overlay = document.getElementById('delete-overlay');
+    const modal = document.getElementById('delete-modal');
+    const modalText = document.getElementById('delete-modal-text');
+
+    // Agar multi-select hai toh text badal jaye
+    if (isSelectionMode && selectedMessages.length > 1) {
+        modalText.innerText = `Delete ${selectedMessages.length} messages for everyone in this chat?`;
+    } else {
+        modalText.innerText = "This message will be deleted for everyone in this chat.";
+    }
+
+    overlay.style.display = 'block';
+    modal.style.display = 'block';
     
-    // Final delete button ka kaam set karna
+    // Final delete button ka kaam
     document.getElementById('final-delete-btn').onclick = function() {
-        if (currentMsgToDelete) {
+        if (isSelectionMode && selectedMessages.length > 0) {
+            // Multi-delete logic
+            selectedMessages.forEach(msgId => {
+                db.ref('messages/' + msgId).remove();
+            });
+            exitSelectionMode();
+        } else if (currentMsgToDelete) {
+            // Single delete logic
             db.ref('messages/' + currentMsgToDelete).remove();
-            closeDeleteModal();
         }
+        closeDeleteModal();
     };
 }
 
@@ -904,6 +1003,11 @@ function closeDeleteModal() {
     currentMsgToDelete = null;
 }
 
+function deleteSelectedMessages() {
+    if (selectedMessages.length > 0) {
+        openDeleteModal(null); // Modal open karein bina single ID ke
+    }
+}
 
 
 
@@ -970,6 +1074,13 @@ window.onclick = function(event) {
     }
 }
 
+// Bubble creation ke waqt ye add karein
+bubble.oncontextmenu = function(event) {
+    event.preventDefault(); // Default copy/paste menu ko rokta hai
+    event.stopPropagation();
+    return false;
+};
+
         
     </script>
     
@@ -1002,14 +1113,27 @@ window.onclick = function(event) {
     </div>
 </div>
 
-    <div id="delete-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:3000; backdrop-filter:blur(2px);" onclick="closeDeleteModal()"></div>
-<div id="delete-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:white; width:85%; max-width:320px; padding:22px; border-radius:15px; z-index:3001; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
-    <h3 style="color:#111b21; margin-bottom:12px; font-size:18px; font-family:inherit;">Delete message?</h3>
-    <p style="color:#667781; font-size:15px; margin-bottom:25px; line-height:1.4;">This message will be deleted for everyone in this chat.</p>
-    <div style="display:flex; justify-content:flex-end; gap:20px;">
-        <button onclick="closeDeleteModal()" style="background:none; border:none; color:#00a884; font-weight:600; font-size:14px; cursor:pointer;">CANCEL</button>
-        <button id="final-delete-btn" style="background:none; border:none; color:#00a884; font-weight:600; font-size:14px; cursor:pointer;">DELETE FOR EVERYONE</button>
+ <div id="delete-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:3000; backdrop-filter:blur(2px); transition: 0.3s;" onclick="closeDeleteModal()"></div>
+<div id="delete-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:white; width:85%; max-width:320px; padding:22px; border-radius:25px; z-index:3001; box-shadow:0 10px 25px rgba(0,0,0,0.2); animation: popIn 0.2s ease-out;">
+    <h3 style="color:#111b21; margin-bottom:12px; font-size:19px; font-weight: 500;">Delete message?</h3>
+    <p id="delete-modal-text" style="color:#667781; font-size:15px; margin-bottom:25px; line-height:1.4;">This message will be deleted for everyone in this chat.</p>
+    <div style="display:flex; justify-content:flex-end; gap:15px;">
+        <button onclick="closeDeleteModal()" style="background:none; border:none; color:#00a884; font-weight:600; font-size:14px; cursor:pointer; padding: 10px; text-transform: uppercase;">CANCEL</button>
+        <button id="final-delete-btn" style="background:none; border:none; color:#00a884; font-weight:600; font-size:14px; cursor:pointer; padding: 10px; text-transform: uppercase;">DELETE FOR EVERYONE</button>
     </div>
+</div>
+
+
+<div id="selection-bar">
+    <i class="fa-solid fa-xmark" onclick="exitSelectionMode()" style="font-size: 20px; cursor: pointer;"></i>
+    <span id="select-count" style="font-size: 18px; flex: 1;">1</span>
+    <i class="fa-solid fa-trash-can" onclick="deleteSelectedMessages()" style="font-size: 20px; cursor: pointer;"></i>
+</div>
+
+<div id="selection-bar">
+    <i class="fa-solid fa-xmark" onclick="exitSelectionMode()" style="font-size: 20px; cursor: pointer;"></i>
+    <span id="select-count" style="font-size: 18px; flex: 1;">1</span>
+    <i class="fa-solid fa-trash-can" onclick="deleteSelectedMessages()" style="font-size: 20px; cursor: pointer;"></i>
 </div>
 
 </body>

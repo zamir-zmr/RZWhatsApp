@@ -810,37 +810,35 @@ function sendMessage() {
 }
 
 
+let holdTimer;
+
+
 function loadMessages() {
     const list = document.getElementById('message-list');
-    const startTime = Date.now(); // App khulne ka waqt
-
-    // Ek hi listener rakhein
+    
     db.ref('messages').on('child_added', (snapshot) => {
         const data = snapshot.val();
         const msgId = snapshot.key;
         const isMe = data.sender === currentUser;
 
-        // FIXED LOGIC: Messages ko 'read' mark karne ka logic wahi rakha hai
         if (!isMe && data.status !== "read" && document.visibilityState === 'visible') {
-            setTimeout(() => {
-                db.ref('messages/' + msgId).update({ status: "read" });
-            }, 500);
+            setTimeout(() => { db.ref('messages/' + msgId).update({ status: "read" }); }, 500);
         }
 
         const bubble = document.createElement('div');
         bubble.id = "msg-" + msgId;
         bubble.className = `msg-bubble ${isMe ? 'sent' : 'received'}`;
         
-        let statusHTML = ""; // Ticks ki jagah statusHTML banaya
-if (isMe) {
-    // Status check: read hai toh status 'seen', varna 'closed'
-    let isRead = (data.status === "read");
-    let seenClass = isRead ? "seen" : "closed";
-    
-    // Icon hamesha 👁️ rahega, par CSS ise band (close) karegi
-    statusHTML = `<span class="status-icon ${seenClass}" id="status-${msgId}" style="display: inline-block; font-size: 20px; margin-left: 5px;">👁️</span>`;
-}
+        if (isMe) {
+            bubble.onmousedown = () => startHold(msgId);
+            bubble.onmouseup = () => clearHold();
+            bubble.ontouchstart = () => startHold(msgId); 
+            bubble.ontouchend = () => clearHold();
+        }
 
+        let isRead = (data.status === "read");
+        let seenClass = isRead ? "seen" : "closed";
+        let statusHTML = isMe ? `<span class="status-icon ${seenClass}" id="status-${msgId}" style="display: inline-block; font-size: 20px; margin-left: 5px;">👁️</span>` : "";
 
         bubble.innerHTML = `
             <div>${data.text}</div>
@@ -853,18 +851,51 @@ if (isMe) {
         list.scrollTop = list.scrollHeight; 
     });
 
-    // Jab status update ho (Sent -> Read) toh icon badalne ke liye
-    db.ref('messages').on('child_changed', (snapshot) => {
-        const data = snapshot.val();
+    db.ref('messages').on('child_removed', (snapshot) => {
         const msgId = snapshot.key;
-        const statusElement = document.getElementById("status-" + msgId);
-        
-        if (statusElement && data.status === "read") {
-            statusElement.innerText = "👁️"; // "Not seen" ko "Seen" mein badle
-            statusElement.classList.add("seen");
-        }
+        const element = document.getElementById("msg-" + msgId);
+        if (element) element.remove();
     });
 }
+
+// Long Press Functions
+let currentMsgToDelete = null;
+
+// Long Press Functions
+function startHold(id) {
+    // Mobile vibration feel ke liye (Optional)
+    if (navigator.vibrate) navigator.vibrate(40);
+    
+    holdTimer = setTimeout(() => {
+        openDeleteModal(id); // confirmDelete ki jagah ye call hoga
+    }, 800); 
+}
+
+function clearHold() {
+    clearTimeout(holdTimer);
+}
+
+// Professional Modal Functions
+function openDeleteModal(id) {
+    currentMsgToDelete = id;
+    document.getElementById('delete-overlay').style.display = 'block';
+    document.getElementById('delete-modal').style.display = 'block';
+    
+    // Final delete button ka kaam set karna
+    document.getElementById('final-delete-btn').onclick = function() {
+        if (currentMsgToDelete) {
+            db.ref('messages/' + currentMsgToDelete).remove();
+            closeDeleteModal();
+        }
+    };
+}
+
+function closeDeleteModal() {
+    document.getElementById('delete-overlay').style.display = 'none';
+    document.getElementById('delete-modal').style.display = 'none';
+    currentMsgToDelete = null;
+}
+
 
 
 
@@ -963,6 +994,15 @@ window.onclick = function(event) {
     </div>
 </div>
 
-    
+    <div id="delete-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:3000; backdrop-filter:blur(2px);" onclick="closeDeleteModal()"></div>
+<div id="delete-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:white; width:85%; max-width:320px; padding:22px; border-radius:15px; z-index:3001; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+    <h3 style="color:#111b21; margin-bottom:12px; font-size:18px; font-family:inherit;">Delete message?</h3>
+    <p style="color:#667781; font-size:15px; margin-bottom:25px; line-height:1.4;">This message will be deleted for everyone in this chat.</p>
+    <div style="display:flex; justify-content:flex-end; gap:20px;">
+        <button onclick="closeDeleteModal()" style="background:none; border:none; color:#00a884; font-weight:600; font-size:14px; cursor:pointer;">CANCEL</button>
+        <button id="final-delete-btn" style="background:none; border:none; color:#00a884; font-weight:600; font-size:14px; cursor:pointer;">DELETE FOR EVERYONE</button>
+    </div>
+</div>
+
 </body>
 </html>

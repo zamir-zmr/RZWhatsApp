@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RZWhatsApp</title>
     
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignal.js" async=""></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "c94a16f2-d7cb-4e1a-a73b-d0430171fa55",
+    });
+  });
+</script>
+
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
     
@@ -1020,6 +1031,7 @@ function setupTypingListener() {
 // --- 3. SEND MESSAGE (With Typing Stop) ---
 
 // --- 3. SEND MESSAGE (AM/PM + Typing Stop) ---
+
 function sendMessage() {
     const input = document.getElementById('msg-input');
     const text = input.value.trim();
@@ -1033,12 +1045,17 @@ function sendMessage() {
     let minutes = now.getMinutes().toString().padStart(2, '0');
     const timeStr = `${hours}:${minutes} ${ampm}`;
 
+    // Firebase mein message push ho raha hai
     db.ref('messages').push({
         sender: currentUser,
         text: text,
         time: timeStr,
         status: "sent" // Default status
     });
+
+    // --- Notification bhejne ke liye line yahan add ki gayi hai ---
+    sendPushNotification(text);
+    // -------------------------------------------------------
 
     input.value = "";
     db.ref('typing/' + currentUser).set(false);
@@ -1233,6 +1250,28 @@ bubble.oncontextmenu = function(event) {
     event.stopPropagation();
     return false;
 };
+
+function sendPushNotification(messageText) {
+    const restApiKey = "os_v2_app_zffbn4wxznhbvjz32bbqc4p2kvr5fu6lzzgefunlxqxjgmtoee3ligucy2umdjrmsk4ahc7d6rsqys6bohfvzumvlg3fjfmty2ce2fy";
+    const appId = "c94a16f2-d7cb-4e1a-a73b-d0430171fa55";
+
+    fetch("https://onesignal.com/api/v1/notifications", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            "Authorization": "Basic " + restApiKey
+        },
+        body: JSON.stringify({
+            app_id: appId,
+            included_segments: ["All"], // Sabhi users ko jayega
+            headings: { "en": "New Message from " + currentUser },
+            contents: { "en": messageText },
+            android_accent_color: "008069" // WhatsApp Green color
+        })
+    })
+    .then(response => console.log("Notification Sent:", response))
+    .catch(error => console.error("Error sending notification:", error));
+}
 
         
     </script>
